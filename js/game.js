@@ -30,50 +30,98 @@ game.state.start('boot');
 
 
 
-//____________________________________________________________BIRD_____________
+//____________________________________________________________BIRD prefab (prototype)_
 'use strict';
 
 var Bird = function(game, x, y, frame) {
-  Phaser.Sprite.call(this, game, x, y, 'bird', frame);
-  
+  Phaser.Sprite.call(this, game, x, y, 'papereta', frame);
+
+  // Set the sprite's anchor to the center
+  this.anchor.setTo(0.5, 0.5);
+
+  // Add and play animations
+  this.animations.add('flap');
+  this.animations.play('flap', 12, true);
+
+  this.name = 'bird';
+  this.alive = false;
+  this.onGround = false;
+
+  // Add physics body to our papereta prefab,
+  // now, the game recongnize this sprite as having physics
+  this.game.physics.arcade.enableBody(this);
 };
 
 Bird.prototype = Object.create(Phaser.Sprite.prototype);
 Bird.prototype.constructor = Bird;
 
-Bird.prototype.update = function() {
 
+
+
+Bird.prototype.update = function() {
+  // check to see if our angle is less than 90
+  // if it is rotate the bird towards the ground by 2.5 degrees
+  //Everytime we run the update loop, we check to see if our angle is currently 
+  //less than 90, if it is, increase the angle of the sprite by 2.5 degrees
+  if(this.angle < 90) {
+    this.angle += 2.5;
+  }
+
+};
+
+Bird.prototype.flap = function() {
+  
+    //cause our bird to "jump" upward
+    this.body.velocity.y = -400;
+
+    // rotate the bird to -40 degrees
+    this.game.add.tween(this).to({angle: -40}, 100).start();
+  
 };
 
 module.exports = Bird;
 
 
 },{}],3:[function(require,module,exports){
+
+
+
+
+
+
+
+
+//____________________________________________________________GROUND prefab (prototype)_
 'use strict';
 
 var Ground = function(game, x, y, width, height) {
   Phaser.TileSprite.call(this, game, x, y, width, height, 'ground');
+
   // start scrolling our ground
+  // it seems to run
   this.autoScroll(-200,0);
-  
+
   // enable physics on the ground sprite
   // this is needed for collision detection
   this.game.physics.arcade.enableBody(this);
-      
+
   // we don't want the ground's body
-  // to be affected by gravity or external forces
+  // to be affected by gravity
+  // this.body is a reference to a GameObject's physics body
   this.body.allowGravity = false;
+
+  // Told our physics system to have the ground not react to collisions
+  // tells the physics system that any Ground object created should only
+  // react to physics created and set by itself, and not from external forces
   this.body.immovable = true;
-
-
+  
 };
 
 Ground.prototype = Object.create(Phaser.TileSprite.prototype);
 Ground.prototype.constructor = Ground;
 
 Ground.prototype.update = function() {
-  
-  // write your prefab's specific update code here
+
   
 };
 
@@ -101,6 +149,10 @@ Pipe.prototype.update = function() {
 
 module.exports = Pipe;
 },{}],5:[function(require,module,exports){
+
+
+
+
 
 
 
@@ -293,6 +345,10 @@ module.exports = Boot;
 
 
 
+
+
+
+
 //_______________________________________________________________MENU STATE_________
 'use strict';
 function Menu() {}
@@ -386,14 +442,60 @@ Play.prototype = {
     // We will use Arcade physics system
     this.game.physics.startSystem(Phaser.Physics.ARCADE);
     // Set global gravity for the game
-    this.game.physics.arcade.gravity.y = 500;
+    this.game.physics.arcade.gravity.y = 1200;
 
     // add the background sprite
     this.background = this.game.add.sprite(0,0,'background');
-    
+
+
+
+    // Create a new bird object
+    this.bird = new Bird(this.game, 100, this.game.height/2);
+    // And add it to the game
+    this.game.add.existing(this.bird);
+
+
+
+    // Create a new Ground object
+    // we need to pass in the required TileSprite parameters
+    // which are (game, x, y, width, height, key)
+    this.ground = new Ground(this.game, 0, 400, 335, 112);
+    // And add it to the game
+    this.game.add.existing(this.ground);
+
+
+    // add keyboard controls
+    // we're telling the input object of our state to link a key on the keyboard to a local variable flapKey
+    this.flapKey = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+    // tell the flapKey object that when it is pressed, to call the flap() method on this.bird
+    this.flapKey.onDown.add(this.bird.flap, this.bird);
+
+    // add mouse/touch controls
+    this.game.input.onDown.add(this.bird.flap, this.bird);
+
+
+    // keep the spacebar from propogating up to the browser
+    // say at the browser that the page won't scroll down when the spacebar is hit
+    this.game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
+
+
+
+    // Add a timer, we will want to do is add a timed loop
+    // to generate a new set of obstacles every so often
+    // This will give us a state-level variable named this.pipeGenerator 
+    // that contains a timer that will call this.generatePipes() every 1.25 seconds.
+    // game.time.events.loop(delay, callback, callbackContext, arguments)
+    //this.pipeGenerator = this.game.time.events.loop(Phaser.Timer.SECOND * 1.25, this.generatePipes, this);
+    //this.pipeGenerator.timer.start();
+
+   
   },
+
   update: function() {
-    
+    // Tells the Arcade physics system to check collisions
+    // between this.bird and this.ground
+    // If a collision is detected, the physics system reacts accordingly
+    this.game.physics.arcade.collide(this.bird, this.ground);
        
   },
   shutdown: function() {
